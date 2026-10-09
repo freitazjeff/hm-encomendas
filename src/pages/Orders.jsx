@@ -15,9 +15,57 @@ export default function Orders() {
     .filter((o) => (!t || o.cliente.toLowerCase().includes(t) || (dig && (o.telefone || '').replace(/\D/g, '').includes(dig))) && (!data || o.data_entrega === data))
     .sort((a, b) => byDate(b, a))
 
+  const enviarResumoWhatsapp = () => {
+    const hoje = new Date()
+    hoje.setHours(0,0,0,0)
+    const limite = new Date()
+    limite.setDate(hoje.getDate() + 7)
+    limite.setHours(23,59,59,999)
+
+    const proximas = orders.filter((o) => {
+      if (!o.data_entrega) return false
+      const d = new Date(o.data_entrega + 'T00:00:00')
+      return d >= hoje && d <= limite
+    }).sort((a, b) => byDate(a, b))
+
+    if (proximas.length === 0) {
+      alert('Nenhuma encomenda nos próximos 7 dias!')
+      return
+    }
+
+    let msg = `🍦 *HM PICÓLES - ENCOMENDAS PRÓX. 7 DIAS*\n`
+    msg += `${hoje.toLocaleDateString('pt-BR')} a ${limite.toLocaleDateString('pt-BR')}\n\n`
+
+    proximas.forEach((o) => {
+      const dataFormatada = new Date(o.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR')
+      const pago = o.pago || o.status_pagamento === 'pago' ? 'PAGO ✅' : 'A RECEBER ⏳'
+      msg += `📅 *${dataFormatada} - ${o.cliente}*\n`
+      if (o.itens) msg += `${o.itens}\n`
+      msg += `${o.quantidade ? o.quantidade + ' un - ' : ''}R$ ${o.valor || o.total || ''} - ${pago}\n`
+      if (o.telefone) msg += `📞 ${o.telefone}\n`
+      msg += `\n`
+    })
+
+    msg += `Total: ${proximas.length} encomenda(s)`
+
+    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`
+    window.open(url, '_blank')
+  }
+
   return (
     <div className="page">
-      <div className="head"><div><h1>Encomendas</h1><div className="sub">{lista.length} encontrada(s)</div></div></div>
+      <div className="head">
+        <div>
+          <h1>Encomendas</h1>
+          <div className="sub">{lista.length} encontrada(s)</div>
+        </div>
+        <button 
+          onClick={enviarResumoWhatsapp}
+          style={{ background: '#25D366', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          📲 Resumo 7 dias
+        </button>
+      </div>
       <div className="search"><Search size={20} /><input placeholder="Buscar por nome ou telefone" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <label>Data</label>
       <input type="date" value={data} onChange={(e) => setData(e.target.value)} />
