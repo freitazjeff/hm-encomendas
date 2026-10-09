@@ -16,6 +16,7 @@ export const PAGAMENTO = { pendente: 'Pendente de pagamento', parcial: 'Pagou um
 export const STATUS_TONE = { agendada: 'in', pronta: 'wr', entregue: 'ok', cancelada: 'er' }
 export const PAGAMENTO_TONE = { pendente: 'er', parcial: 'wr', paga: 'ok' }
 
+export const isFinalizada = (o) => o.status === 'entregue' && o.pagamento === 'paga'
 export const isLate = (o) => o.data_entrega < todayISO() && ['agendada', 'pronta'].includes(o.status)
 export const byDate = (a, b) =>
   (a.data_entrega + (a.horario || '')).localeCompare(b.data_entrega + (b.horario || ''))

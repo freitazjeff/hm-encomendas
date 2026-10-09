@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useOrders } from '../lib/api'
 import { useAuth } from '../lib/auth.jsx'
-import { byDate, todayISO } from '../lib/format'
+import { byDate, isFinalizada, todayISO } from '../lib/format'
 import { OrderCard } from '../components.jsx'
 
 export default function Home() {
@@ -10,7 +10,8 @@ export default function Home() {
   const { profile } = useAuth()
   const h = todayISO()
   const ativos = orders.filter((o) => ['agendada', 'pronta'].includes(o.status)).sort(byDate)
-  const hoje = ativos.filter((o) => o.data_entrega === h)
+  const hoje = orders.filter((o) => o.data_entrega === h && o.status !== 'cancelada').sort(byDate)
+  const concluidas = hoje.filter(isFinalizada).length
   const proximas = ativos.filter((o) => o.data_entrega > h).slice(0, 5)
   const atrasadas = ativos.filter((o) => o.data_entrega < h)
 
@@ -23,6 +24,7 @@ export default function Home() {
       <div className="hero">
         <div className="big">{loading ? '–' : hoje.length}</div>
         <p>entregas e retiradas previstas para hoje</p>
+        {!loading && hoje.length > 0 && <div className="mini">✓ {concluidas} finalizada(s) · {hoje.length - concluidas} pendente(s)</div>}
       </div>
       <Link to="/nova" className="btn-pill"><Plus size={20} /> Nova encomenda</Link>
       {error && <div className="err">{error}</div>}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Plus, X } from 'lucide-react'
 import { getOrder, getPrice, saveOrder } from '../lib/api'
+import { SABORES } from '../lib/sabores'
 import { useAuth } from '../lib/auth.jsx'
 import { brl, todayISO, fmtTime } from '../lib/format'
 import { PAGAMENTO } from '../lib/format'
@@ -72,7 +73,14 @@ export default function OrderForm() {
         <h3>Sabores e quantidades</h3>
         {itens.map((it, i) => (
           <div className="items" key={i}>
-            <input placeholder="Sabor (ex.: Açaí)" value={it.sabor} onChange={(e) => setItem(i, 'sabor', e.target.value)} />
+            <select value={it.sabor} onChange={(e) => setItem(i, 'sabor', e.target.value)}>
+              <option value="">Selecione o sabor</option>
+              {/* sabor antigo (digitado livremente) continua aparecendo ao editar pedidos antigos */}
+              {it.sabor && !SABORES.includes(it.sabor) && <option value={it.sabor}>{it.sabor}</option>}
+              {SABORES.map((s) => (
+                <option key={s} value={s} disabled={itens.some((x, xi) => xi !== i && x.sabor === s)}>{s}</option>
+              ))}
+            </select>
             <input placeholder="Qtd" type="number" inputMode="numeric" min="1" value={it.quantidade} onChange={(e) => setItem(i, 'quantidade', e.target.value)} />
             <button className="icon-btn" aria-label="Remover" disabled={itens.length === 1} onClick={() => setItens(itens.filter((_, x) => x !== i))}><X size={18} /></button>
           </div>

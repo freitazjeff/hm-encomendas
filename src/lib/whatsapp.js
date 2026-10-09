@@ -1,4 +1,4 @@
-import { brl, fmtDate, fmtTime, PAGAMENTO, STATUS } from './format'
+import { brl, fmtDate, fmtTime, isFinalizada, PAGAMENTO, STATUS } from './format'
 
 export function resumoEncomenda(o) {
   const saldo = Math.max(0, o.valor_total - o.valor_pago)
@@ -14,7 +14,7 @@ export function resumoEncomenda(o) {
     '',
     `Total: ${o.total_unidades} picolés — ${brl(o.valor_total)}`,
     `Pagamento: ${PAGAMENTO[o.pagamento]}${saldo > 0 ? ` (falta ${brl(saldo)})` : ''}`,
-    `Situação: ${STATUS[o.status]}`,
+    `Situação: ${isFinalizada(o) ? "Finalizada ✅" : STATUS[o.status]}`,
     o.observacoes ? `Obs.: ${o.observacoes}` : null,
   ].filter((l) => l !== null).join('\n')
 }

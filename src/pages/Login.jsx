@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Eye, EyeOff, IceCream } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function Login() {
@@ -8,12 +9,14 @@ export default function Login() {
   const [ver, setVer] = useState(false)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const nav = useNavigate()
 
   async function entrar(e) {
     e.preventDefault()
     setBusy(true); setErr('')
     const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
     if (error) setErr('E-mail ou senha incorretos.')
+    else nav('/', { replace: true }) // após entrar, sempre começa pelo Início
     setBusy(false)
   }
 

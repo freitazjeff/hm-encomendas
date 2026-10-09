@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LogOut } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth.jsx'
 import { getPrice, setPrice, vendedoresApi } from '../lib/api'
@@ -7,6 +8,7 @@ import { Badge } from '../components.jsx'
 
 export default function Profile() {
   const { profile, isAdmin, signOut } = useAuth()
+  const nav = useNavigate()
   const [preco, setPreco] = useState('')
   const [vendedores, setVendedores] = useState([])
   const [novo, setNovo] = useState({ nome: '', email: '', senha: '' })
@@ -24,7 +26,7 @@ export default function Profile() {
       <div className="card">
         <div className="row"><div><div className="title">{profile.nome}</div><div className="sub">Usuário conectado</div></div>
           <Badge tone="in">{isAdmin ? 'Administrador' : 'Vendedor'}</Badge></div>
-        <div className="btn-row"><button className="btn" onClick={signOut}><LogOut size={18} /> Sair</button></div>
+        <div className="btn-row"><button className="btn" onClick={async () => { nav('/', { replace: true }); await signOut() }}><LogOut size={18} /> Sair</button></div>
       </div>
       {msg && <div className="info">{msg}</div>}{err && <div className="err">{err}</div>}
 
