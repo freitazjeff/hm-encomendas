@@ -1,82 +1,102 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { CheckCircle2, ChevronLeft, Trash2, XCircle } from 'lucide-react'
-import { deleteOrder, getOrder, updateOrder } from '../lib/api'
-import { useAuth } from '../lib/auth.jsx'
-import { brl, fmtDate, fmtTime } from '../lib/format'
-import { ConfirmModal, OrderBadges } from '../components.jsx'
+import { useState } from 'react'
+import { Search } from 'lucide-react'
+import { useOrders } from '../lib/api'
+import { byDate, brl, fmtDate } from '../lib/format'
+import { applyFilters, Filters, OrderCard } from '../components.jsx'
 
-export default function OrderDetail() {
-  const { id } = useParams()
-  const nav = useNavigate()
-  const { profile, isAdmin } = useAuth()
-  const [o, setO] = useState(null)
-  const [err, setErr] = useState('')
-  const [modal, setModal] = useState(null) // 'cancelar' | 'excluir'
-  const [busy, setBusy] = useState(false)
-  const load = () => getOrder(id).then(setO).catch((e) => setErr(e.message))
-  useEffect(() => { load() }, [id])
+export default function Orders() {
+  const { orders, loading } = useOrders()
+  const [q, setQ] = useState('')
+  const [data, setData] = useState('')
+  const [f, setF] = useState({ status: '', modalidade: '' })
+  const t = q.trim().toLowerCase()
+  const dig = t.replace(/\D/g, '')
+  const lista = applyFilters(orders, f)
+    .filter((o) => (!t || o.cliente.toLowerCase().includes(t) || (dig && (o.telefone || '').replace(/\D/g, '').includes(dig))) && (!data || o.data_entrega === data))
+    .sort((a, b) => byDate(b, a))
 
-  if (err) return <div className="page"><div className="err">{err}</div></div>
-  if (!o) return <div className="page"><div className="empty">Carregando…</div></div>
-  const pode = isAdmin || o.criado_por === profile.id
-  const saldo = Math.max(0, o.valor_total - o.valor_pago)
+  const enviarResumoWhatsapp = () => {
+    const hoje = new Date()
+    hoje.setHours(0,0,0,0)
+    const limite = new Date()
+    limite.setDate(hoje.getDate() + 7)
+    limite.setHours(23,59,59,999)
 
-  async function mudar(patch) {
-    setBusy(true)
-    try { await updateOrder(id, patch); setModal(null); await load() } catch (e) { setErr(e.message) }
-    setBusy(false)
-  }
-  async function excluir() {
-    setBusy(true)
-    try { await deleteOrder(id); nav('/pedidos', { replace: true }) } catch (e) { setErr(e.message); setBusy(false) }
+    const proximas = orders.filter((o) => {
+      if (!o.data_entrega) return false
+      if (o.status === 'cancelada') return false
+      const d = new Date(o.data_entrega + 'T00:00:00')
+      return d >= hoje && d <= limite
+    }).sort((a, b) => byDate(a, b))
+
+    if (proximas.length === 0) {
+      alert('Nenhuma encomenda nos próximos 7 dias!')
+      return
+    }
+
+    let totalGeral = 0
+    let saldoGeral = 0
+    let qtdGeral = 0
+
+    let msg = `*HM PICOLES - PROX. 7 DIAS*\n`
+    msg += `${hoje.toLocaleDateString('pt-BR')} a ${limite.toLocaleDateString('pt-BR')}\n`
+    msg += `----------------------------\n\n`
+
+    proximas.forEach((o) => {
+      const dataF = fmtDate ? fmtDate(o.data_entrega) : new Date(o.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR')
+      const valorTotal = Number(o.valor_total) || 0
+      const valorPago = Number(o.valor_pago) || 0
+      const saldo = Math.max(0, valorTotal - valorPago)
+      const ehPaga = o.pagamento === 'paga'
+      
+      totalGeral += valorTotal
+      saldoGeral += saldo
+      qtdGeral += Number(o.total_unidades) || 0
+
+      msg += `*${dataF} - ${o.cliente}* - ${o.status}\n`
+      
+      if (o.order_items && o.order_items.length) {
+        o.order_items.forEach(i => {
+          msg += `- ${i.sabor} x${i.quantidade}\n`
+        })
+      } else if (o.total_unidades) {
+        msg += `${o.total_unidades} picoles\n`
+      }
+
+      msg += `${brl ? brl(valorTotal) : `R$ ${valorTotal.toFixed(2)}`} - ${ehPaga ? 'PAGO ✅' : `SALDO ${brl ? brl(saldo) : `R$ ${saldo.toFixed(2)}`} ⏳`}\n`
+      if (o.telefone) msg += `${o.telefone}\n`
+      msg += `\n`
+    })
+
+    msg += `----------------------------\n`
+    msg += `Encomendas: ${proximas.length}\n`
+    msg += `Total picoles: ${qtdGeral}\n`
+    msg += `Total geral: ${brl ? brl(totalGeral) : `R$ ${totalGeral.toFixed(2)}`}\n`
+    msg += `A receber: ${brl ? brl(saldoGeral) : `R$ ${saldoGeral.toFixed(2)}`}\n`
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
   return (
     <div className="page">
-      <button className="back" onClick={() => nav(-1)}><ChevronLeft size={20} /> Voltar</button>
-      <h1>{o.cliente}</h1>
-      <OrderBadges o={o} />
-
-      <div className="card" style={{ marginTop: 18 }}>
-        <div className="sub">Telefone</div><div className="title">{o.telefone ? <a href={`tel:${o.telefone}`} style={{ color: 'var(--pri)' }}>{o.telefone}</a> : '—'}</div>
-        <div className="sub" style={{ marginTop: 12 }}>Data</div><div className="title">{fmtDate(o.data_entrega)}{o.horario ? ` às ${fmtTime(o.horario)}` : ''}</div>
-        {o.modalidade === 'entrega' && (<><div className="sub" style={{ marginTop: 12 }}>Endereço</div><div className="title">{o.endereco}</div></>)}
-        {o.observacoes && (<><div className="sub" style={{ marginTop: 12 }}>Observações</div><div className="title">{o.observacoes}</div></>)}
-        <div className="sub" style={{ marginTop: 12 }}>Criada por</div><div className="title">{o.criador?.nome || '—'}</div>
-      </div>
-
-      <div className="card">
-        <h3>Sabores</h3>
-        {o.order_items.map((i) => (
-          <div className="row" key={i.id} style={{ marginBottom: 8 }}><span>{i.sabor} × {i.quantidade}</span><span className="title">{brl(i.quantidade * o.preco_unitario)}</span></div>
-        ))}
-        <div className="totals">
-          <div className="row"><span className="sub">Total de picolés</span><span className="num">{o.total_unidades}</span></div>
-          <div className="row"><span className="sub">Valor total</span><span className="num">{brl(o.valor_total)}</span></div>
-          <div className="row"><span className="sub">Pago</span><span className="num">{brl(o.valor_pago)}</span></div>
-          <div className="row"><span className="sub">Saldo</span><span className="num">{brl(saldo)}</span></div>
+      <div className="head">
+        <div>
+          <h1>Encomendas</h1>
+          <div className="sub">{lista.length} encontrada(s)</div>
         </div>
+        <button 
+          onClick={enviarResumoWhatsapp}
+          style={{ background: '#25D366', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          📲 Resumo 7 dias
+        </button>
       </div>
-
-      {pode ? (
-        <>
-          <div className="btn-row">
-            {o.status === 'agendada' && <button className="btn" onClick={() => mudar({ status: 'pronta' })}>Marcar como pronta</button>}
-            {['agendada', 'pronta'].includes(o.status) && <button className="btn" onClick={() => mudar({ status: 'entregue' })}>Entregue/retirada</button>}
-            {['entregue', 'cancelada'].includes(o.status) && <button className="btn" onClick={() => mudar({ status: 'agendada' })}>Reabrir</button>}
-            {o.pagamento !== 'paga' && o.status !== 'cancelada' && <button className="btn" onClick={() => mudar({ pagamento: 'paga', valor_pago: o.valor_total })}>Quitar pagamento</button>}
-          </div>
-          <div className="btn-row">
-            <button className="btn" onClick={() => nav(`/pedidos/${id}/editar`)}>Editar</button>
-            {o.status !== 'cancelada' && <button className="btn danger" onClick={() => setModal('cancelar')}>Cancelar pedido</button>}
-            <button className="btn danger" onClick={() => setModal('excluir')}>Excluir</button>
-          </div>
-        </>
-      ) : <div className="info">Você pode consultar esta encomenda, mas só o criador ou o administrador pode alterá-la.</div>}
-
-      {modal === 'cancelar' && <ConfirmModal icon={XCircle} title="Cancelar encomenda?" detail={`O pedido de ${o.cliente} ficará marcado como cancelado.`} confirmLabel="Cancelar pedido" busy={busy} onCancel={() => setModal(null)} onConfirm={() => mudar({ status: 'cancelada' })} />}
-      {modal === 'excluir' && <ConfirmModal icon={Trash2} title="Excluir encomenda?" detail="Essa ação não pode ser desfeita." confirmLabel="Excluir" busy={busy} onCancel={() => setModal(null)} onConfirm={excluir} />}
+      <div className="search"><Search size={20} /><input placeholder="Buscar por nome ou telefone" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+      <label>Data</label>
+      <input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+      <div style={{ height: 14 }} />
+      <Filters f={f} setF={setF} />
+      {loading ? <div className="empty">Carregando…</div> : lista.map((o) => <OrderCard key={o.id} o={o} />)}
     </div>
   )
 }
