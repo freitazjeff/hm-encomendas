@@ -23,41 +23,33 @@ export default function Orders() {
       const d=new Date(o.data_entrega+'T00:00:00'); return d>=hoje && d<=limite
     }).sort((a,b)=>byDate(a,b))
     if(!proximas.length) return alert('Nada nos prox 7 dias')
-
-    let msg = `*HM PICOLES - PROX 7 DIAS*\n`
-    let tot = 0
-    let pic = 0
-
+    let msg = `*HM PICOLES - PROX 7 DIAS*\n\n`
     proximas.forEach(o=>{
       const vTotal = Number(o.valor_total)||0
       const vPago = Number(o.valor_pago)||0
       const saldo = vTotal - vPago
-      const qtd = Number(o.total_unidades)||0
-      tot+=vTotal; pic+=qtd
       const dia = o.data_entrega?.split('-').reverse().join('/')||''
-      msg += `*${o.cliente}* - ${dia} - ${o.status}\n`
-      if(o.order_items && o.order_items.length){
+      msg += `*${o.cliente}* - ${dia}\n`
+      if(o.order_items?.length){
         o.order_items.forEach(i=>{ msg+= `${i.sabor} x${i.quantidade}\n` })
       }
-      const pagoTxt = o.pagamento==='paga' ? 'PAGO' : `SALDO R$ ${saldo.toFixed(2)}`
-      msg += `${qtd} picoles - R$ ${vTotal.toFixed(2)} - ${pagoTxt}\n\n`
+      msg += `${o.total_unidades||0} picoles - R$ ${vTotal.toFixed(2)} - ${o.pagamento==='paga'?'PAGO':'SALDO R$ '+saldo.toFixed(2)}\n\n`
     })
-    msg += `Total: R$ ${tot.toFixed(2)} | ${pic} picoles\n`
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank')
   }
 
   return (
-    <div className="page" style={{paddingBottom:100}}>
+    <div className="page">
       <h1>Encomendas</h1>
       <div className="sub">{lista.length} encontrada(s)</div>
+      <button onClick={enviarZap} className="btn" style={{background:'#25D366', marginBottom:12, width:'100%'}}>
+        📲 Enviar resumo 7 dias no WhatsApp
+      </button>
       <div className="search"><Search size={20} /><input placeholder="Buscar por nome ou telefone" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <label>Data</label><input type="date" value={data} onChange={(e) => setData(e.target.value)} />
       <div style={{ height: 14 }} />
       <Filters f={f} setF={setF} />
       {loading ? <div className="empty">Carregando…</div> : lista.map((o) => <OrderCard key={o.id} o={o} />)}
-      <button onClick={enviarZap} style={{position:'fixed', bottom:85, right:20, background:'#25D366', color:'white', border:'none', padding:'14px 22px', borderRadius:'30px', fontWeight:'bold', boxShadow:'0 4px 12px rgba(0,0,0,0.3)', zIndex:9999}}>
-        📲 Resumo 7 dias
-      </button>
     </div>
   )
 }
