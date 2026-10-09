@@ -4,6 +4,14 @@ import { useOrders } from '../lib/api'
 import { byDate } from '../lib/format'
 import { applyFilters, Filters, OrderCard } from '../components.jsx'
 
+function formatBRL(v){
+  return (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})
+}
+function formatData(d){
+  if(!d) return ''
+  const [y,m,day]=d.split('-'); return `${day}/${m}/${y}`
+}
+
 export default function Orders() {
   const { orders, loading } = useOrders()
   const [q, setQ] = useState('')
@@ -24,20 +32,28 @@ export default function Orders() {
     }).sort((a,b)=>byDate(a,b))
     if(!proximas.length) return alert('Nada nos prox 7 dias')
 
-    let msg = `*HM PICOLES - PROX 7 DIAS*\n`
-    let tot = 0
+    let msg = `*HM PICOLES - PROXIMOS 7 DIAS*\n${formatData(hoje.toISOString().split('T')[0])} a ${formatData(limite.toISOString().split('T')[0])}\n----------------------------\n\n`
+    let totalGeral=0, saldoGeral=0, qtdGeral=0
+
     proximas.forEach(o=>{
-      const v = Number(o.valor_total)||0
-      tot+=v
-      const dia = o.data_entrega?.split('-').reverse().join('/')||''
-      msg += `*${o.cliente}* - ${dia} - ${o.status}\n`
+      const vTotal = Number(o.valor_total)||0
+      const vPago = Number(o.valor_pago)||0
+      const saldo = Math.max(0, vTotal - vPago)
+      const qtd = Number(o.total_unidades)||0
+      totalGeral+=vTotal; saldoGeral+=saldo; qtdGeral+=qtd
+
+      msg += `*${o.cliente}* - ${formatData(o.data_entrega)} - ${o.status}\n`
       if(o.order_items?.length){
-        o.order_items.forEach(i=>{ msg+= `${i.sabor} x${i.quantidade}\n` })
+        o.order_items.forEach(i=>{ msg+= `- ${i.sabor} x${i.quantidade}\n` })
       }
-      const pago = o.pagamento==='paga' ? 'PAGO' : `SALDO R$ ${ (v - (Number(o.valor_pago)||0)).toFixed(2) }`
-      msg += `R$ ${v.toFixed(2)} - ${pago}\n\n`
+      msg += `${qtd} picolés - ${formatBRL(vTotal)} - ${o.pagamento==='paga' ? 'PAGO' : `SALDO ${formatBRL(saldo)}`}\n`
+      if(o.telefone) msg+= `Tel: ${o.telefone}\n`
+      msg+= `\n`
     })
-    msg += `Total a receber proximos 7 dias: R$ ${tot.toFixed(2)}\n`
+
+    msg += `----------------------------\n`
+    msg += `Pedidos: ${proximas.length}\nPicoles: ${qtdGeral}\nTotal: ${formatBRL(totalGeral)}\nA receber: ${formatBRL(saldoGeral)}\n`
+
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank')
   }
 
@@ -46,8 +62,7 @@ export default function Orders() {
       <h1>Encomendas</h1>
       <div className="sub">{lista.length} encontrada(s)</div>
       <div className="search"><Search size={20} /><input placeholder="Buscar por nome ou telefone" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-      <label>Data</label>
-      <input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+      <label>Data</label><input type="date" value={data} onChange={(e) => setData(e.target.value)} />
       <div style={{ height: 14 }} />
       <Filters f={f} setF={setF} />
       {loading ? <div className="empty">Carregando…</div> : lista.map((o) => <OrderCard key={o.id} o={o} />)}
