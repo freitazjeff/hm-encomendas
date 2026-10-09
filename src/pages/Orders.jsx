@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Search } from 'lucide-react'
 import { useOrders } from '../lib/api'
-import { byDate } from '../lib/format'
+import { byDate, brl, fmtDate } from '../lib/format'
 import { applyFilters, Filters, OrderCard } from '../components.jsx'
 
 export default function Orders() {
@@ -24,6 +24,7 @@ export default function Orders() {
 
     const proximas = orders.filter((o) => {
       if (!o.data_entrega) return false
+      if (o.status === 'cancelada') return false
       const d = new Date(o.data_entrega + 'T00:00:00')
       return d >= hoje && d <= limite
     }).sort((a, b) => byDate(a, b))
@@ -33,23 +34,44 @@ export default function Orders() {
       return
     }
 
-    let msg = `🍦 *HM PICÓLES - ENCOMENDAS PRÓX. 7 DIAS*\n`
-    msg += `${hoje.toLocaleDateString('pt-BR')} a ${limite.toLocaleDateString('pt-BR')}\n\n`
+    let totalGeral = 0
+    let saldoGeral = 0
+    let qtdGeral = 0
+
+    let msg = `*HM PICOLES - PROXIMOS 7 DIAS*\n`
+    msg += `${hoje.toLocaleDateString('pt-BR')} a ${limite.toLocaleDateString('pt-BR')}\n`
+    msg += `----------------------------\n\n`
 
     proximas.forEach((o) => {
-      const dataFormatada = new Date(o.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR')
-      const pago = o.pago || o.status_pagamento === 'pago' ? 'PAGO ✅' : 'A RECEBER ⏳'
-      msg += `📅 *${dataFormatada} - ${o.cliente}*\n`
-      if (o.itens) msg += `${o.itens}\n`
-      msg += `${o.quantidade ? o.quantidade + ' un - ' : ''}R$ ${o.valor || o.total || ''} - ${pago}\n`
-      if (o.telefone) msg += `📞 ${o.telefone}\n`
+      const dataF = fmtDate(o.data_entrega)
+      const valorTotal = Number(o.valor_total) || 0
+      const valorPago = Number(o.valor_pago) || 0
+      const saldo = Math.max(0, valorTotal - valorPago)
+      const ehPaga = o.pagamento === 'paga'
+
+      totalGeral += valorTotal
+      saldoGeral += saldo
+      qtdGeral += Number(o.total_unidades) || 0
+
+      // NÃO começa com data pra não virar calendario no Zap
+      msg += `*${o.cliente}* - ${dataF} - ${o.status}\n`
+      if (o.order_items?.length) {
+        o.order_items.forEach(i => {
+          msg += `${i.sabor} x${i.quantidade}\n`
+        })
+      }
+      msg += `${brl(valorTotal)} - ${ehPaga ? 'PAGO' : `SALDO ${brl(saldo)}`}\n`
+      if (o.telefone) msg += `${o.telefone}\n`
       msg += `\n`
     })
 
-    msg += `Total: ${proximas.length} encomenda(s)`
+    msg += `----------------------------\n`
+    msg += `Pedidos: ${proximas.length}\n`
+    msg += `Picoles: ${qtdGeral}\n`
+    msg += `Total: ${brl(totalGeral)}\n`
+    msg += `A receber: ${brl(saldoGeral)}\n`
 
-    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`
-    window.open(url, '_blank')
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
   return (
