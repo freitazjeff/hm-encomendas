@@ -4,14 +4,6 @@ import { useOrders } from '../lib/api'
 import { byDate } from '../lib/format'
 import { applyFilters, Filters, OrderCard } from '../components.jsx'
 
-function formatBRL(v){
-  return (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})
-}
-function formatData(d){
-  if(!d) return ''
-  const [y,m,day]=d.split('-'); return `${day}/${m}/${y}`
-}
-
 export default function Orders() {
   const { orders, loading } = useOrders()
   const [q, setQ] = useState('')
@@ -32,28 +24,25 @@ export default function Orders() {
     }).sort((a,b)=>byDate(a,b))
     if(!proximas.length) return alert('Nada nos prox 7 dias')
 
-    let msg = `*HM PICOLES - PROXIMOS 7 DIAS*\n${formatData(hoje.toISOString().split('T')[0])} a ${formatData(limite.toISOString().split('T')[0])}\n----------------------------\n\n`
-    let totalGeral=0, saldoGeral=0, qtdGeral=0
+    let msg = `*HM PICOLES - PROX 7 DIAS*\n`
+    let tot = 0
+    let pic = 0
 
     proximas.forEach(o=>{
       const vTotal = Number(o.valor_total)||0
       const vPago = Number(o.valor_pago)||0
-      const saldo = Math.max(0, vTotal - vPago)
+      const saldo = vTotal - vPago
       const qtd = Number(o.total_unidades)||0
-      totalGeral+=vTotal; saldoGeral+=saldo; qtdGeral+=qtd
-
-      msg += `*${o.cliente}* - ${formatData(o.data_entrega)} - ${o.status}\n`
-      if(o.order_items?.length){
-        o.order_items.forEach(i=>{ msg+= `- ${i.sabor} x${i.quantidade}\n` })
+      tot+=vTotal; pic+=qtd
+      const dia = o.data_entrega?.split('-').reverse().join('/')||''
+      msg += `*${o.cliente}* - ${dia} - ${o.status}\n`
+      if(o.order_items && o.order_items.length){
+        o.order_items.forEach(i=>{ msg+= `${i.sabor} x${i.quantidade}\n` })
       }
-      msg += `${qtd} picolés - ${formatBRL(vTotal)} - ${o.pagamento==='paga' ? 'PAGO' : `SALDO ${formatBRL(saldo)}`}\n`
-      if(o.telefone) msg+= `Tel: ${o.telefone}\n`
-      msg+= `\n`
+      const pagoTxt = o.pagamento==='paga' ? 'PAGO' : `SALDO R$ ${saldo.toFixed(2)}`
+      msg += `${qtd} picoles - R$ ${vTotal.toFixed(2)} - ${pagoTxt}\n\n`
     })
-
-    msg += `----------------------------\n`
-    msg += `Pedidos: ${proximas.length}\nPicoles: ${qtdGeral}\nTotal: ${formatBRL(totalGeral)}\nA receber: ${formatBRL(saldoGeral)}\n`
-
+    msg += `Total: R$ ${tot.toFixed(2)} | ${pic} picoles\n`
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank')
   }
 
@@ -66,7 +55,6 @@ export default function Orders() {
       <div style={{ height: 14 }} />
       <Filters f={f} setF={setF} />
       {loading ? <div className="empty">Carregando…</div> : lista.map((o) => <OrderCard key={o.id} o={o} />)}
-
       <button onClick={enviarZap} style={{position:'fixed', bottom:85, right:20, background:'#25D366', color:'white', border:'none', padding:'14px 22px', borderRadius:'30px', fontWeight:'bold', boxShadow:'0 4px 12px rgba(0,0,0,0.3)', zIndex:9999}}>
         📲 Resumo 7 dias
       </button>
