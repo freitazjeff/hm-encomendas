@@ -82,3 +82,7 @@ nav.bar a.fab{background:var(--pri);color:#fff;width:54px;height:54px;border-rad
 .check{width:24px;height:24px;border-radius:50%;background:var(--ok);color:#fff;display:inline-grid;place-items:center;flex:none;box-shadow:0 4px 10px rgba(30,131,77,.3)}
 .hero .mini{margin-top:10px;font-weight:700;font-size:14px;opacity:.95}
 select option:disabled{color:#b6bdc9}
+
+/* Logo HM Picolés (arquivo em public/logo.png) */
+.logo-login{display:block;height:88px;max-width:75%;object-fit:contain;margin-bottom:18px}
+.logo-home{height:46px;max-width:65%;object-fit:contain}

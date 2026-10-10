@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, EyeOff, IceCream } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -23,7 +23,7 @@ export default function Login() {
   return (
     <div className="login">
       <form className="box" onSubmit={entrar}>
-        <div className="logo"><IceCream size={32} /></div>
+        <img src="/logo.png" alt="HM Picolés" className="logo-login" onError={(e) => (e.currentTarget.style.display = 'none')} />
         <h1>HM Encomendas</h1>
         <p className="sub">Acesso restrito à equipe HM Picolés.</p>
         <label>E-mail</label>
